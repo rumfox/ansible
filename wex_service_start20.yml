@@ -1,0 +1,81 @@
+##########################################################################################
+# Program : WEX 초기 작업 
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook wex_service_start20.yml
+##########################################################################################
+---
+#############################################################
+# 작업내용 : WEX 초기작업
+# Woking Server : WEX 01번
+#############################################################
+- hosts: lcia-dnawex01
+  remote_user: admin
+  become_user: esadmin
+  become: true
+  become_method: sudo
+
+  tasks:
+    ############################################################
+    # 크롤러 & 크롤링 시작 
+    ############################################################
+    - name: "▶ WEX 크롤링(초기작업)  1"
+      include_tasks: wex_service_idx20.yml
+      vars:
+        - sessionid: "{{ item.cid }}"
+      with_items:
+        - { cid: Main6.JDBC_33473 }
+        - { cid: Main6.JDBC_42634 }
+        - { cid: Main6.JDBC_44282 }
+        - { cid: Main6.JDBC_46975 }
+        - { cid: Main6.JDBC_55590 }
+        - { cid: Main6.JDBC_57316 }
+        - { cid: Main6.JDBC_6478 }
+
+    ############################################################
+    # Search Reset
+    ############################################################
+    - name: "▶ 10. Search Reset "
+      shell: |
+        sh /home/esadmin/bin/reset_search.sh
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: "▶ 10 Check : Search Reset" 
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: "▶ 10 Result : Search Reset" 
+      debug:
+        msg:
+          - "{{ job_result.stdout }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+    ############################################################
+    # WEX Warmingup 
+    ############################################################
+    - name: "▶ 11 WEX Warming up "
+      shell: |
+        sh /home/esadmin/lcia_ifi/sh/wexWarmingUp.sh
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: "▶ 11 WEX Warming up "
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: "▶ 11 Result : WEX Warming up "
+      debug:
+        msg:
+          - "{{ job_result.stdout }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+

@@ -1,0 +1,19 @@
+---
+- hosts: lcia-dev01
+  remote_user: admin
+  gather_facts: no
+
+  tasks:
+    - name: Get top cpu consuming process
+      custom2:
+        pid: pid
+        ppid: ppid
+        cmd: cmd 
+        mem: mem
+        cpu: cpu
+        sort: mem
+        num: '10'    
+      register: result 
+
+    - debug:
+        var: result

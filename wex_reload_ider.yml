@@ -1,0 +1,137 @@
+###############################################################################################################
+# 1. Program      : wex_reload_ider.yml
+# 2. Description  : when after wex data reindexing job  
+# 3. Creator      : Lee Sang Hyoung
+# 4. Syntax 1(ALL): ansible-playbook wex_reload_ider.yml -e '{"rlddate1":yyyymmdd,"rlddate2":yyyymmdd}'
+#    Syntax 1(ALL): ansible-playbook wex_reload_ider.yml -e '{"rlddate1":20160101,"rlddate2":20180730}'
+#    Syntax 2(DNA): ansible-playbook wex_reload_ider.yml -t DNA -e '{"rlddate1":yyyymmdd,"rlddate2":yyyymmdd}'
+#    Syntax 3(DW) : ansible-playbook wex_reload_ider.yml -t DW 
+###############################################################################################################
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: yes
+  become_user: lcia-dna
+  become_method: sudo
+  vars: 
+    #############################################################
+    # 패싯추출내역 초기/재적재 
+    #############################################################
+    oozielist1: 
+      - {jobname: WFO_RE05_SOR_DD, jobid: hue-oozie-1516085246.27} 
+
+    #############################################################
+    # 일별버즈집계 초기/재적재
+    #############################################################
+    oozielist2: 
+      - {jobname: WFO_RE01_ANA_DD, jobid: hue-oozie-1512279629.53}
+
+  tags:
+    - DNA
+ 
+  tasks:
+    #############################
+    # 패싯추출내역 초기/재적재 
+    #############################
+    - template: 
+        src: /etc/ansible/template/{{ jobname }}.j2
+        dest: /home/lcia-dna/oozie-cli/{{ jobname }}/job.properties
+      vars: 
+        - jobname: "{{ item.jobname }}" 
+        - jobid: "{{ item.jobid }}"
+        - reloaddate2: "{{ rlddate2 }}"
+      with_items: 
+        - "{{ oozielist1 }}" 
+
+    - name: job 1 oozie "{{ item.jobname }}"  
+      include_tasks: wex_reload_ided.yml
+      vars: 
+        - jobname: "{{ item.jobname }}" 
+        - jobid: "{{ item.jobid }}"
+      with_items: 
+        - "{{ oozielist1 }}" 
+
+    #############################
+    # 일별버즈집계 초기/재적재
+    #############################
+    - template: 
+        src: /etc/ansible/template/{{ jobname }}.j2
+        dest: /home/lcia-dna/oozie-cli/{{ jobname }}/job.properties
+      vars: 
+        - jobname: "{{ item.jobname }}" 
+        - jobid: "{{ item.jobid }}"
+        - reloaddate1: "{{ rlddate1 }}"
+        - reloaddate2: "{{ rlddate2 }}"
+      with_items: 
+        - "{{ oozielist2 }}" 
+
+    - name: job 2 oozie "{{ item.jobname }}"  
+      include_tasks: wex_reload_ided.yml
+      vars: 
+        - jobname: "{{ item.jobname }}" 
+        - jobid: "{{ item.jobid }}"
+      with_items: 
+        - "{{ oozielist2 }}" 
+
+- hosts: lcia-etl01
+  remote_user: admin
+  become: true
+  become_user: dsadm
+  become_method: sudo
+  vars:
+    - project: "LCIA"
+    - jobname: "Batch_I_SA_SOC_01"
+    #- project: "LCIA_DEV"
+    #- jobname: "Veriable_TEST"
+  tags:
+    - DW
+
+  tasks:
+    ########################################################################
+    # DW 일별버즈/버즈조합/버즈TOP제품조합 집계, 신조어/페이스북이벤트 내역
+    ########################################################################
+    - name: job 3 DataStage {{ jobname }}
+      shell: |
+        . `cat /.dshome`/dsenv 
+        ${DSHOME}/bin/dsjob -run -mode RESET {{ project }} {{ jobname }}
+        ${DSHOME}/bin/dsjob -run -wait -jobstatus {{ project }} {{ jobname }} 
+      ignore_errors: True
+      register: ansibleresult
+      async: 27000
+      poll: 0
+
+    - name: 'Check on fire and forget data stage task'
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 600
+      delay: 45
+
+    - name: Data stage result (SUCCEEDED)
+      debug:
+        msg: 
+          - "Run Command : {{ job_result.cmd }}"
+          - "Start time  : {{ job_result.start }}"
+          - "End time    : {{ job_result.end }}"
+          - "Pass tiem   : {{ job_result.delta }}"
+          - "Return code : {{ job_result.rc }}"
+      when: job_result.rc == 1
+
+    - name: Data stage result (WARNING)
+      debug:
+        msg: "{{ job_result }}"
+      when: job_result.rc == 2
+
+    - name: Data stage result (FAILED)
+      debug:
+        msg: "{{ job_result }}"
+      when: job_result.rc == 3
+      #failed_when: job_result.rc == 3
+
+    - name: Data stage result (NOT IN 1,2,3)
+      debug:
+        msg: "{{ job_result }}"
+      when: job_result.rc not in [1,2,3]
+      #failed_when: job_result.rc not in [1,2,3]
+

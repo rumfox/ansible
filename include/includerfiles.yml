@@ -1,0 +1,15 @@
+---
+- name: touch files
+  hosts: localhost
+  gather_facts: false
+  
+  tasks:
+    - import_tasks: files.yml
+      vars:
+        files:
+          herp:
+            path: /lcia/ansible/test/include/foo
+          derp:
+            path: /lcia/ansible/test/include/foo
+
+    

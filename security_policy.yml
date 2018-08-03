@@ -1,0 +1,90 @@
+###########################################################################################
+# Program : security_policy.yml
+# Purpose : file contents change test 
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook security_policy.yml 
+#           ansible-playbook security_policy.yml -e "host=lcia-dev01" -t TEST
+###########################################################################################
+---
+- hosts: "{{ host }}"
+  remote_user: admin
+  become: true
+  become_user: root
+  become_method: sudo
+
+  tasks:
+    #############################################
+    # [U-01] root 계정 원격 접속 제한 1 
+    # /etc/securetty 파일 pts/0 ~ pts/x 주석처리 
+    #############################################
+    - name: "[U-01] root 계정 원격 접속 제한 1"
+      replace:
+        path: /etc/securetty
+        regexp: 'pts/'
+        replace: '#pts/'
+        backup: yes
+      register: jobresult
+      tags: U-01
+
+    - name: "[U-01] Result"
+      debug:
+        msg: "{{ jobresult }}"
+      tags: U-01
+  
+    #############################################
+    # [U-01] root 계정 원격 접속 제한 2 
+    # /etc/pam.d/login 파일 수정 
+    #############################################
+    - name: "[U-01] root 계정 원격 접속 제한 2"
+      replace:
+        path: /etc/pam.d/login
+        regexp: '#auth required /lib/security/pam_securetty.so'
+        replace: 'auth required /lib/security/pam_securetty.so'
+        backup: yes
+      register: jobresult
+      tags: U-01
+
+    - name: "[U-01] Result"
+      debug:
+        msg: "{{ jobresult }}"
+      tags: U-01
+
+    #############################################
+    # [U-01] root 계정 원격 접속 제한 3
+    # /etc/pam.d/login 파일 수정 
+    #############################################
+    - name: "[U-01] root 계정 원격 접속 제한 3"
+      replace:
+        path: /etc/ssh/sshd_config
+        regexp: 'PermitRootLogin yes'
+        replace: 'PermitRootLogin no'
+        backup: yes
+      register: jobresult
+      tags: U-01,TEST
+
+    - name: "[U-01] Result"
+      debug:
+        msg: "{{ jobresult }}"
+      tags: U-01,TEST
+
+    #############################################
+    # [U-02] 패스워드 복잡성 설정
+    # /etc/pam.d/system-auth 파일 수정 
+    #############################################
+    - name: "[U-02] 패스워드 복잡성 설정"
+      lineinfile:
+        path: /etc/pam.d/system-auth 
+#       path: /home/admin/ansible/test/testfile/system-auth
+        line: >
+          password requisite /lib/security/$ISA/pam_cracklib.so 
+          retry=3 minlen=8 lcredit=-1 ucredit=-1 dcredit=-1 ocredit=-1
+        backup: yes
+      register: jobresult
+      tags: U-02
+
+    - name: "[U-02] Result"
+      debug:
+        msg: "{{ jobresult }}"
+      tags: U-02
+
+

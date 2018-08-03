@@ -1,0 +1,48 @@
+#####################################################################################################
+# Program : sshkey_work.yml
+# Description : Remote 서버에서 Remote 서버로 RSA키를 보낼때 사용
+# Creator : Lee Sang Hyoung
+# Syntax : ansible-playbook sshkey_work.yml -e "host=lcia-dnaedge01 user=user01" 
+#####################################################################################################
+--- 
+- hosts: "{{ host }}"
+  remote_user: admin
+  become_user: root
+  become: true
+  become_method: sudo
+
+  vars:
+    - host: "{{ host }}"
+    - user: "{{ user }}"
+
+  tasks:
+    - name: RSA Key 생성
+      user: 
+        name: "{{ user }}"
+        generate_ssh_key: yes
+
+    - name: RSA Key를 임시폴더(Ansible이 실행되는 Local서버)로 복사 
+      fetch: 
+        src: /home/{{ user }}/.ssh/id_rsa.pub 
+        dest: /tmp/id_rsa.tmp 
+        flat: yes
+
+    - name: Ansible서버 임시폴더의 RSA Key를 Remote서버로 복사 
+      local_action: shell cat /tmp/id_rsa.tmp | ssh -p 22 {{ user }}@10.109.2.89 "cat >> /{{ user }}/.ssh/authorized_keys"
+
+    - name: 임시 폴더내용 삭제 
+      local_action: file  path=/tmp/id_rsa.tmp state=absent
+
+- hosts: lcia-minsky01
+  remote_user: admin
+  become_user: "{{ user }}"
+  become: true
+  become_method: sudo
+
+  tasks:
+    - name: "폴더의 권한 조정"
+      shell: | 
+        sh chmod go-w /home/admin/
+        sh chmod 700 /home/admin/.ssh
+        sh chmod 600 /home/admin/.ssh/authorized_keys
+

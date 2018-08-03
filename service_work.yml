@@ -1,0 +1,25 @@
+# #######################################################################################################################
+# Program : service_work.yml
+# Purpose : OS service start / stop / restart & enabled
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook service_work.yml -e "host= service= startedstopped= "
+# Example : ansible-playbook service_work.yml -e "host=lcia-dnaland01 service=rsyncd suser=admin status=started/stopped/restarted"
+# #######################################################################################################################
+---
+- hosts: "{{ host }}"
+  remote_user: "{{ suser }}"
+  become: yes
+  become_method: sudo 
+  
+  tasks:
+    - name: "{{ service }} Service Stop {{ status }}" 
+      service: 
+        name: "{{ service }}"
+        state: "{{ status }}"
+        enabled: yes
+      with_items:
+        - host: "{{ host }}"
+        - service: "{{ service }}"
+        - suser: "{{ suser }}"
+        - status: "{{ status }}"
+

@@ -1,0 +1,16 @@
+---
+# ------------------------------------------------
+# Template test 
+# Sample : ansible-playbook template_test2.yml
+# ------------------------------------------------
+- hosts: testnode
+
+  tasks:
+    - name: How to check the status of nginx
+      debug: msg="{{ lookup('template', '/lcia/ansible/test/template/msg.j2').split('\n') }}" 
+
+  #vars:
+  #   contents: "{{ lookup('file', '/lcia/ansible/test/msg.j2').split('\n') }}"
+  #tasks:
+  #   - debug: msg="the value of msg.j2 is {{ contents }}"
+

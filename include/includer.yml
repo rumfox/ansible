@@ -1,0 +1,26 @@
+---
+- hosts: lcia-dnawex01
+  remote_user: admin
+  become: yes
+  become_user: esadmin
+  become_method: sudo
+
+  tasks:
+    - name: "WEX Parser Status"
+      include_tasks: wex_service_pars.yml
+      vars:
+        - sessiontype: "{{ item[0] }}"
+        - sessionkind: "{{ item[1] }}"
+      with_nested:
+        - [ 'Parser' ]
+        - [ 'Main2', 'FACEBOOK', 'FACEBOOK-REPLY','Report' ]
+
+    - name: "WEX Search Status"
+      include_tasks: wex_service_srch.yml
+      vars:
+        - sessiontype: "{{ item[0] }}"
+        - sessionkind: "{{ item[1] }}"
+      with_nested:
+        - [ 'Search' ]
+        - [ 'Main2', 'FACEBOOK', 'FACEBOOK-REPLY','Report' ]
+

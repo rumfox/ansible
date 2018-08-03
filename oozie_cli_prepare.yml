@@ -1,0 +1,56 @@
+# -------------------------------------------------------------------------------------------
+# Program : oozie_cli_prepare.yml
+# Purpose : oozie cli basic configuration setting  
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook oozie_cli_prepare.yml -t MKDIR, CPLOCAL, MODPROPERTI
+# -------------------------------------------------------------------------------------------
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: yes
+  become_user: lcia-dna
+  become_method: sudo
+  vars:
+    oozielist:
+      - { clidir: WFO_P001_SOR_DD, hdfsdir: hue-oozie-1516785538.56 }
+      - { clidir: WFO_0018_ANA_WW, hdfsdir: hue-oozie-1516784734.5 }
+      - { clidir: WFO_0001_SOR_HH, hdfsdir: hue-oozie-1504686177.49 }
+      - { clidir: WFO_0005_SOR_DD, hdfsdir: hue-oozie-1508843527.11 }
+      - { clidir: WFO_0010_SOR_DD, hdfsdir: hue-oozie-1512116282.15 }
+      - { clidir: WFO_0006_SOR_DD, hdfsdir: hue-oozie-1509002847.61 }
+      - { clidir: WFO_0004_SOR_MM, hdfsdir: hue-oozie-1505093471.37 }
+      - { clidir: WFO_0015_ANA_DD, hdfsdir: hue-oozie-1511774951.05 }
+
+  tasks:
+    - name: "create directory for each oozie job cli"
+      file:
+        path: /home/lcia-dna/oozie-cli/{{ item.clidir }}
+        state: directory 
+        owner: lcia-dna
+        group: hadoop
+        mode: 0755
+      with_items: 
+        - "{{ oozielist }}"
+      tags:
+        - MKDIR
+
+    - name: Copy file from HDFS to local 
+      shell: >
+        /usr/bin/hdfs dfs -copyToLocal 
+        /user/hue/oozie/workspaces/{{ item.hdfsdir }}/job.properties 
+        /home/lcia-dna/oozie-cli/{{ item.clidir }}/
+      with_items: 
+        - "{{ oozielist }}"
+      tags:
+        - CPLOCAL
+
+    - name: Modify each job.properties file
+      lineinfile:
+        path: /home/lcia-dna/oozie-cli/{{ item.clidir }}/job.properties
+        insertafter: 'oozie.use.system.libpath=True'
+        line: 'oozie.wf.application.path=hdfs://lcia-digitaldna-bdp/user/hue/oozie/workspaces/{{ item.hdfsdir }}'
+      with_items: 
+        - "{{ oozielist }}"
+      tags:
+        - MODPROPERTI
+

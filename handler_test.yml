@@ -1,0 +1,41 @@
+# -----------------------------------------------------------------------------------------
+# Program : handler_test.yml
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook handler_test.yml -e "host=testnode" 
+# -----------------------------------------------------------------------------------------
+---
+- hosts: "{{ host }}" 
+  remote_user: admin
+  #become: yes
+  #become_method: sudo 
+  vars:
+    with_items:
+      - host: "{{ host }}"
+
+  tasks:
+    - name: Task 1
+      #debug: msg="This Message from the Task ...  " 
+      shell: "ls -l"
+      notify: 
+        - test1
+      register: test1 
+
+    - name: Task 2
+      #debug: msg="This Message from the Task ...  " 
+      shell: "ls -l"
+      notify: 
+        - test2
+      register: test2 
+
+    - name: Display result 1 
+      debug: msg="This Message from register test1 {{ test1.stdout }} " 
+
+    - name: Display result 2 
+      debug: msg="This Message from register test2 {{ test2.stdout_lines }} " 
+
+  handlers:
+    - name: test1
+      debug: msg="This Message from the Handler 1 ...  " 
+
+    - name: test2
+      debug: msg="This Message from the Handler 2 ...  " 

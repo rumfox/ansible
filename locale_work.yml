@@ -1,0 +1,20 @@
+# -----------------------------------------------------------------------------------------
+# Program : locale_work.yml
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook locale_work.yml -e "host= module= " 
+# -----------------------------------------------------------------------------------------
+---
+- hosts: "{{ host }}" 
+  remote_user: admin
+  become: yes
+  become_method: sudo 
+  with_items:
+    - host: "{{ host }}"
+
+  tasks:
+    - name: Locale Setting
+      locale_gen:
+        name: ko_KR.utf8
+        state: present
+
+

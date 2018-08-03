@@ -1,0 +1,73 @@
+#################################################################################
+# 1. Program     : dsetl_work_ided.yml
+# 2. Description : when after product info changed.
+# 3. Creator     : Lee Sang Hyoung
+# 4. Syntax      : None. Be called from includer "prod_reload_ider.yml". 
+#################################################################################
+---
+- name: Async datastage job batched_items
+  shell: |
+    . `cat /.dshome`/dsenv
+    ${DSHOME}/bin/dsjob -run -mode RESET {{ project }} {{ async_item }}
+    ${DSHOME}/bin/dsjob -run -wait -jobstatus {{ project }} {{ async_item }}
+  async: 27000
+  poll: 0
+  with_items: "{{ etljob }}"
+  loop_control:
+    loop_var: "async_item"
+  register: async_results
+
+- name: Check datastage job sync status
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  with_items: "{{ async_results.results }}"
+  loop_control:
+    loop_var: "async_result_item"
+  register: async_poll_results
+  until: async_poll_results.finished
+  ignore_errors: True
+  retries: 600
+  delay: 45
+
+- name: Data stage result (SUCCEEDED)
+  debug:
+    msg: 
+      - "Run Command : {{ async_poll_results.results.0.cmd }}"
+      - "Start time  : {{ async_poll_results.results.0.start }}"
+      - "Pass time   : {{ async_poll_results.results.0.delta }}"
+  when: (async_poll_results.results.0 is defined) and (async_poll_results.results.0.rc == 1)
+
+- name: Data stage result (SUCCEEDED)
+  debug:
+    msg: 
+      - "Run Command : {{ async_poll_results.results.1.cmd }}"
+      - "Start time  : {{ async_poll_results.results.1.start }}"
+      - "Pass time   : {{ async_poll_results.results.1.delta }}"
+  when: (async_poll_results.results.1 is defined) and (async_poll_results.results.1.rc == 1)
+
+- name: Data stage result (SUCCEEDED)
+  debug:
+    msg: 
+      - "Run Command : {{ async_poll_results.results.2.cmd }}"
+      - "Start time  : {{ async_poll_results.results.2.start }}"
+      - "Pass time   : {{ async_poll_results.results.2.delta }}"
+  when: (async_poll_results.results.2 is defined) and (async_poll_results.results.2.rc == 1)
+
+- name: Data stage result (WARNING | FAILED)
+  debug:
+    msg: "{{ async_poll_results }}"
+  when: (async_poll_results.results.0 is defined) and (async_poll_results.results.0.rc != 1)
+  #failed_when: (async_poll_results.results.0 is defined) and (async_poll_results.results.0.rc != 1)
+
+- name: Data stage result (WARNING | FAILED)
+  debug:
+    msg: "{{ async_poll_results }}"
+  when: (async_poll_results.results.1 is defined) and (async_poll_results.results.1.rc != 1)
+  #failed_when: (async_poll_results.results.1 is defined) and (async_poll_results.results.1.rc != 1)
+
+- name: Data stage result (WARNING | FAILED)
+  debug:
+    msg: "{{ async_poll_results }}"
+  when: (async_poll_results.results.2 is defined) and (async_poll_results.results.2.rc != 1)
+  #failed_when: (async_poll_results.results.2 is defined) and (async_poll_results.results.2.rc != 1)
+

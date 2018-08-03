@@ -1,0 +1,61 @@
+# #########################################################################################
+# Program : db2_service_ided.yml
+# Creator : Lee Sang Hyoung
+# Syntax :  wex_service_start.yml에서 호출
+# #########################################################################################
+---
+##################################
+# DB2 종료
+##################################
+- name: "db2 종료"
+  shell: |-
+    . {{ db2profile }}   
+    db2 force application all  
+    db2stop force    
+  ignore_errors: yes
+
+- pause: seconds=10
+
+- name: check db2 process
+  shell: ps -ef | grep -I db2sysc | grep -v grep
+  ignore_errors: True
+  register: db2rslt
+
+- debug:
+    msg:
+      - "db2 stop (SUCCEEDED) : {{ db2rslt.stdout }}"
+  when: db2rslt.stdout == ""
+
+- debug:
+    msg:
+      - "db2 stop (FAILED) : {{ db2rslt.stdout }}"
+  when: db2rslt.stdout != ""
+
+##################################
+# DB2 시작
+##################################
+- name: "db2 시작"
+  shell: |-
+    . {{ db2profile }}
+    db2start
+    db2 activate db lciadwdb
+    #db2 connect to lciadwdb
+  ignore_errors: yes
+
+- pause: seconds=15
+
+- name: check db2 process
+  shell: ps -ef | grep -I db2sysc | grep -v grep
+  register: db2rslt
+
+- debug:
+    msg:
+      - "db2 start (SUCCEEDED) : {{ db2rslt.stdout }}"
+  when: db2rslt.stdout != ""
+
+- debug:
+    msg:
+      - "db2 start (FAILED) : {{ db2rslt.stdout }}"
+  when: db2rslt.stdout == ""
+
+

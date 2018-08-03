@@ -1,0 +1,41 @@
+# -------------------------------------------------------------------------------------------
+# Program : scantrack.yml
+# Purpose : Scantrack Data Convert(xls --> csv) & Landingzone cp 
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook scantrack.yml
+# -------------------------------------------------------------------------------------------
+---
+- hosts: localhost
+  remote_user: admin
+
+  tasks:
+  - name: Work 1. Execute scantrack data covert notebook 
+    command: /lcia/python/ScanTrackData_Upload.py
+
+- hosts: lcia-dnaland01
+  remote_user: admin
+
+  tasks:
+    - name: Work 2. file Copy to landing zone
+      copy:
+        src: "{{ item }}"
+        dest: /lcia/src/SCANTRACK/
+      with_fileglob:
+        - /lcia/data/*.csv
+
+- hosts: localhost
+  remote_user: admin
+
+  tasks: 
+    - name: Work 3. rm file wildcard
+      find:
+        paths: /lcia/data
+        patterns: "*.*"
+      register: find_results
+
+    - name: Work 4. rm file delete after copy
+      file:
+        path: "{{ item['path'] }}"
+        state: absent
+      with_items: "{{ find_results['files'] }}"
+

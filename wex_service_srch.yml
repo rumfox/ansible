@@ -1,0 +1,25 @@
+---
+##########################################################
+# Search 상태 체크 
+##########################################################
+- name: "▶▶ Search 상태 체크 :  {{ sessiontype }} | {{ sessionkind }}"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin monitor getCollection{{ sessiontype }}MonitorStatus -cid {{ sessionkind }} > /home/esadmin/ansible_wex/wex_parsrch.log
+    /home/esadmin/ansible_wex/wex_parsear_status.py
+    cat /home/esadmin/ansible_wex/wex_parsrch.dat
+  ignore_errors: yes
+  register: statuscheck
+  until: >
+    statuscheck.stdout == "111"  
+  retries: 50
+  delay: 45
+
+- name: "▶▶ Search 상태 체크 : {{ sessiontype }} | {{ sessionkind }} status"
+  debug:
+    msg: 
+      - "{{ statuscheck.stdout }}"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+      - "------------------------------"
+

@@ -1,0 +1,33 @@
+# -----------------------------------------------------------------------------------------
+# Program : command_work2.yml
+# Creator : Lee Sang Hyoung
+# Syntax : ansible-playbook command_work2.yml -t COMMAND -e "host=wexnode cmd=reboot"
+# -----------------------------------------------------------------------------------------
+---
+- hosts: "{{ host }}"
+  become_user: root
+  become: true
+  become_method: sudo
+  remote_user: admin
+
+  tasks:
+    - name: "{{ module }} Service Start "
+      shell: 'nohup {{ module }} -s &'
+      with_items:
+        - host: "{{ host }}"
+        - module: "{{ module }}"
+      tags:
+        - COMMON
+
+    - name: "수행 명령어 : {{ cmd }} "
+      command: "{{ cmd }}"
+      register: job_result
+      tags:
+        - COMMAND 
+
+    - name: Ambari-agent result
+      debug:
+        msg: "{{ job_result.stdout_lines }}"
+      tags:
+        - COMMAND
+   

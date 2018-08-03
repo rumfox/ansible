@@ -1,0 +1,46 @@
+---
+- hosts: lcia-dnawex01
+  remote_user: admin
+  become: yes
+  become_user: esadmin
+  become_method: sudo
+
+  tasks:
+    ############################################################
+    # 인덱싱 컬렉션 Session 아이디 수집
+    ############################################################
+    - name: Gathering WEX Collection ID Information
+      shell: |
+        . /opt/IBM/es/nodeinfo/esprofile
+        esadmin report sessions -type crawler -format full > /home/esadmin/ansible_wex/wex_session.log
+        /home/esadmin/ansible_wex/wex_sessionid_get.py
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: 'Check on Gathering WEX Collection ID Information '
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: Gathering WEX Collection ID Information
+      debug:
+        msg: "{{ job_result.stdout }}"
+
+    ############################################################
+    # 크롤러 & 크롤링 시작
+    ############################################################
+    - name: Start WEX Cralwer
+      shell: cat /home/esadmin/ansible_wex/wex_session.dat
+      register: crawler_session
+
+    - name: "WEX 크롤링"
+      include_tasks: wex_idx.yml
+      vars:
+        - sessionid: "{{ item }}"
+      with_items:
+        - "{{ crawler_session.stdout_lines }}"
+

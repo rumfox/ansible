@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------------------------------
+# Program : dna_reload_workm.yml
+# Creator : Lee Sang Hyoung
+# Syntax1 : ansible-playbook dna_reload_workm.yml --extra-vars '{"reloaddate":[20180126,20180127]}'
+# Syntax2 : ansible-playbook dna_reload_workm.yml --extra-vars '{"reloaddate":[20180126]}'
+# -----------------------------------------------------------------------------------------------------
+---
+- hosts: localhost
+  remote_user: admin
+
+  tasks:
+    - name: Change STDR_DATE
+      command: >
+        ansible-playbook dna_reload_works.yml -e 
+        "{{ item[1] }} reloaddate={{ item[0] }}"  
+      register: datareload
+      with_nested:
+        - "{{ reloaddate }}"
+        - ["jobname=kosk003 jobid=hue-oozie-1516786023.33"] 
+        #- ["jobname=kosk003 jobid=hue-oozie-1516786023.33", 
+        #   "jobname=kosk003 jobid=hue-oozie-1516786023.33"]
+
+        #- ["jobname=WFO_P001_SOR_DD jobid=hue-oozie-1516785538.56",
+        #   "jobname=WFO_0018_ANA_WW jobid=hue-oozie-1516784734.5",
+        #   "jobname=WFO_0001_SOR_HH jobid=hue-oozie-1504686177.49",
+        #   "jobname=WFO_0005_SOR_DD jobid=hue-oozie-1508843527.11",
+        #   "jobname=WFO_0010_SOR_DD jobid=hue-oozie-1512116282.15",
+        #   "jobname=WFO_0006_SOR_DD jobid=hue-oozie-1509002847.61",
+        #   "jobname=WFO_0004_SOR_MM jobid=hue-oozie-1505093471.37",
+        #   "jobname=WFO_0015_ANA_DD jobid=hue-oozie-1511774951.05"]
+
+    - name: Print Job Result 1
+      debug:
+        var: datareload
+        verbosity: 3
+        #msg: "Job Result: {{ datareload.reloaddate }}"
+
+

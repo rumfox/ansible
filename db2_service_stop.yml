@@ -1,0 +1,41 @@
+# #########################################################################################
+# Program : db2_service_stop.yml
+# Creator : Lee Sang Hyoung
+# Syntax : ansible-playbook db2_service_stop.yml
+# #########################################################################################
+---
+- hosts: lcia-dwdb01
+  remote_user: admin
+  become: true
+  become_user: db2inst1
+  become_method: sudo
+  vars:
+    - db2profile : "/lcia/db2inst1/sqllib/db2profile"
+    - db2path: "/lcia/db2inst1/sqllib/bin:/lcia/db2inst1/sqllib/adm:/lcia/db2inst1/sqllib/misc:db2tss/bin" 
+
+  tasks:
+    - name: db2 service stop 
+      shell: |-
+        . {{ db2profile }}   
+        db2 force application all  
+        db2stop force    
+      ignore_errors: yes
+
+    - pause: seconds=15
+ 
+    - name: check db2 process
+      shell: ps -ef | grep -I db2sysc | grep -v grep
+      ignore_errors: True
+      register: db2rslt
+
+    - debug:
+        msg:
+          - "db2 stop (SUCCEEDED) : {{ db2rslt.stdout }}"
+      when: db2rslt.stdout == ""
+
+    - debug:
+        msg:
+          - "db2 stop (FAILED) : {{ db2rslt.stdout }}"
+      when: db2rslt.stdout != ""
+
+

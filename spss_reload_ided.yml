@@ -1,0 +1,52 @@
+# ----------------------------------------------------------------------------------------
+# Program     : spss_reload_ided.yml
+# Description : for the spss data reloading job 
+# Syntax      : nothing (this file only be called from includer ("spss_reload_ider.yml)
+# Creator     : Lee Sang Hyoung
+# ----------------------------------------------------------------------------------------
+---
+- name: spss data reload job run 
+  shell: >
+    /spss/modl18bat/clemb -server 
+    -hostname 10.109.2.80  
+    -port 28056   
+    -username "spss_id"   
+    -password "spss_pw"  
+    -analytic_server_username "as_spss_id"  
+    -analytic_server_password "as_spss_pw"  
+    -execute  
+    -stream /lcia/job/stream/test_stream.str 
+    -log /lcia/job/log/test_stream.log  
+    -Pstart_ym="{{ startym }}"   
+    -Pend_ym="{{ endym }}"  
+  register: spssjobcall  
+
+- name: spss job status check (running or complete)
+  command: > 
+    spss jobs --oozie http://10.109.2.73:11000/oozie 
+    -filter ID={{ spssjobcall.stdout[5:] }}\;Status=RUNNING | grep "No Jobs match"
+  register: statuscheck 
+  until: statuscheck.stdout.find("No Jobs match") != -1
+  retries: 1000
+  delay: 45
+
+- name: spss job status check (success or not) 
+  command: > 
+    spss jobs --oozie http://10.109.2.73:11000/oozie
+    -filter ID={{ statuscheck.cmd[5:6][0] | 
+    regex_replace('^ID=(.*)$','\1') |  
+    regex_replace(';Status=(.*)*','\1') }} |
+    awk '{print $1 $2 $3}' | grep "SUCCEEDED"
+  register: spssjobresult
+
+- name: spss job result (SUCCEEDED)
+  debug:
+    msg: "{{ spssjobresult.stdout }}"
+  when: spssjobresult.stdout.find("SUCCEEDED") != -1 
+
+- name: spss job result (FAILED)
+  debug:
+    msg: "{{ spssjobresult.stdout }}"
+  when: spssjobresult.stdout.find("SUCCEEDED") == -1 
+  #failed_when: spssjobresult.stdout.find("SUCCEEDED") == -1 
+

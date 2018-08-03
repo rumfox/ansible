@@ -1,0 +1,35 @@
+##################################################################################################
+# Program : nilson_pos_reload.yml
+# Creator : Lee Sang Hyoung
+# Syntax2 : ansible-playbook nilson_pos_reload.yml --extra-vars '{"rlddate":[yyyymmdd,yyyymmdd]}'
+##################################################################################################
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: yes
+  become_user: lcia-dna
+  become_method: sudo
+  vars: 
+    ###############################################################
+    # 닐슨POS  
+    ###############################################################
+    oozielist2: 
+      - {jobname: WFO_0009_SOR_DD, jobid: hue-oozie-1511919447.57}
+
+  tasks:
+    ################################################
+    # 닐슨POS  
+    ################################################
+    - name: Running Job 2 
+      include_tasks: dna_reload_ided.yml
+      vars: 
+        - jobname: "{{ item[1].jobname }}" 
+        - jobid: "{{ item[1].jobid }}"
+        - reloaddate: "{{  lookup('pipe', modedate1 + modedate2 + modedate3 ) }}"
+        - modedate1: "date +%Y%m%d -d '"
+        - modedate2: "{{ item[0] }}"
+        - modedate3: " -1 day'"
+      with_nested: 
+        - "{{ rlddate }}"
+        - "{{ oozielist2 }}"
+

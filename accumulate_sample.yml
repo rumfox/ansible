@@ -1,0 +1,129 @@
+---
+- hosts: wexnode
+  remote_user: admin
+  become: yes
+  become_user: esadmin
+  become_method: sudo
+
+  tasks:
+    ############################################################
+    # WEX 서비스 성공여부 확인
+    ############################################################
+    - name: check wex process
+      shell: |
+        . /opt/IBM/es/nodeinfo/esprofile 
+        esadmin Main2.indexservice.node1 getIndexBuildStatusAll
+      register: statuscheck
+      ignore_errors: yes 
+      #run_once: yes
+      #until: ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | search('WAITING') | join != "WAITINGWAITINGWAITING"
+      #until: ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | map('regex_search','(?<=indexBuildStatusDetail\":{\"status\":\")(.*)(?=\",\"numberOfDocumentUpserted)') | join != "WAITINGWAITINGWAITING"
+      #retries: 10
+      #delay: 2
+
+    - name: WEX Process Start (SUCCEEDED)
+      debug:
+        msg: "{{ ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | search('WAITING') | string | join }}"
+        #msg: "{{ ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | map('regex_search','(?<=indexBuildStatusDetail\":{\"status\":\")(.*)(?=\",\"numberOfDocumentUpserted)') | join }}"
+      run_once: yes
+      #until: ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | map('regex_search','(?<=indexBuildStatusDetail\":{\"status\":\")(.*)(?=\",\"numberOfDocumentUpserted)') | join == "WAITINGWAITINGWAITING"
+      retries: 10
+      delay: 2
+    #  until: statuscheck.stdout == "3" 
+    #    msg: "{{ statuscheck.stdout[159:292] }}"
+    #    #msg: "{{ statuscheck.stdout_lines.1 | regex_search('(status)') }}"
+    #  when: statuscheck.stdout == "3"
+
+#########################################################################################################
+    #- name: WEX Process Start (SUCCEEDED)
+    #  debug:
+    #    msg: "{{ ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | map('regex_search','(?<=indexBuildStatusDetail\":)(.*)(?=,\"numberOfDocumentUpserted)') | map('regex_search','WAITING') | join }}"
+    #  run_once: yes
+    #  until: ansible_play_hosts | map('extract', hostvars, 'statuscheck') | map(attribute='stdout') | map('regex_search','(?<=indexBuildStatusDetail\":)(.*)(?=,\"numberOfDocumentUpserted)') | list  | map('regex_search','WAITING') | list | join == "WAITINGWAITINGWAITING"
+    #  retries: 10
+    #  delay: 2
+    #  until: statuscheck.stdout == "3"
+    #    msg: "{{ statuscheck.stdout[159:292] }}"
+    #    #msg: "{{ statuscheck.stdout_lines.1 | regex_search('(status)') }}"
+    #  when: statuscheck.stdout == "3"
+
+    #- name: WEX Process Start (FAILED)
+    #  debug:
+    #    msg: "{{ statuscheck.stdout }}"
+    #  failed_when: statuscheck.stdout != "3"
+    #  #when: statuscheck.stdout != "3"
+
+
+    ############################################################
+    # 데이터 크롤링 상태 확인
+    ############################################################
+    #- name: WEX Crawling Status checking
+    #  shell: |
+    #    lsof +D /lcia/esadmin/export/|grep ExportLCIA_Main2_{{'%Y-%m-%d'|strftime((ansible_date_time.epoch|int)-(86400*1))}}|wc -l
+    #  register: statuscheck
+    #  until: statuscheck.stdout == "0"
+    #  retries: 500
+    #  delay: 2
+
+    #- name: WEX Indexing Start status
+    #  debug:
+    #    msg: "{{ '%Y-%m-%d' | strftime( ( ansible_date_time.epoch | int ) - ( 86400 * 1 )  ) }}"
+
+    
+
+    #- name: Check on WEX Crawling Status
+    #  async_status: jid={{ ansibleresult.ansible_job_id }}
+    #  ignore_errors: True
+    #  register: job_result
+    #  until: job_result.finished
+    #  retries: 120
+    #  delay: 2
+
+    #- name: WEX Crawling Status
+    #  debug:
+    #    msg: "{{ job_result.stdout }}"
+
+
+    ############################################################
+    # 데이터 크롤링 시작
+    ############################################################
+    #- name: Start WEX Crawling - session id read
+    #  shell: cat /home/esadmin/ansible_wex/wex_session.dat
+    #  register: session_items
+
+    #- name: Start WEX Crawling
+    #  shell: |
+    #    . /opt/IBM/es/nodeinfo/esprofile
+    #    eadmin {{ item }} sstartCrawl -options 3
+    #  with_items: 
+    #    - "{{ session_items.stdout_lines }}"
+      #register: ansibleresult
+      #async: 1200
+      #poll: 0
+
+
+        #. /opt/IBM/es/nodeinfo/esprofile
+        #eadmin "{{ item }}" sstartCrawl -options 3
+    #- name: Start WEX Crawling
+    #  debug:
+    #    var: "{{ item }}"
+    #  with_items: 
+    #    - "{{ session_items.stdout_lines }}"
+   #  shell: echo {{ item }} 
+   #   register: ansibleresult
+   #   async: 1200
+   #   poll: 0
+
+   # - name: 'Check on WEX Indexing Start'
+   #   async_status: jid={{ ansibleresult.ansible_job_id }}
+   #   ignore_errors: True
+   #   register: job_result
+   #   until: job_result.finished
+   #   retries: 120
+   #   delay: 10
+
+   # - name: WEX Indexing Start status
+   #   debug:
+   #     msg: "{{ job_result.stdout }}"
+
+

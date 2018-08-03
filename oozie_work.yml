@@ -1,0 +1,25 @@
+# -----------------------------------------------------------------
+# Creator : Lee Sang Hyoung 
+# Purpose : oozie job execute test 
+# Syntax  : ansible-playbook oozie_work.yml 
+# -----------------------------------------------------------------
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: true 
+  become_user: lcia-dna
+  become_method: sudo
+
+  tasks:
+    - name: oozie job call 
+      command: > 
+        oozie job --oozie 
+        http://10.109.2.73:11000/oozie -info /home/lcia-dna/oozie-cli/kosk003/job.properties
+      register: ooziejobcall
+
+    - name: Print Job Result
+      debug:
+        msg: "Job Result: {{ ooziejobcall }}"
+ 
+    #-info /home/lcia-dna/oozie-cli/kosk003/job.properties  
+

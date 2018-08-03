@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------------------------------
+# Program     : wex_template_test2.yml
+# Description : when after wex data reindexing job  
+# Creator     : Lee Sang Hyoung
+# Syntax      : ansible-playbook wex_template_test2.yml -e '{"rlddate1":yyyymmdd,"rlddate2":yyyymmdd}'
+# Syntax      : ansible-playbook wex_template_test2.yml -e '{"rlddate1":20181109,"rlddate2":20181110}'
+# -----------------------------------------------------------------------------------------------------
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: yes
+  become_user: lcia-dna
+  become_method: sudo
+  vars: 
+
+    oozielist2: 
+      - {jobname: WFO_RE01_ANA_DD, jobid: hue-oozie-1512279629.53}
+
+  tasks:
+    - template: 
+        src: /etc/ansible/template/{{ jobname }}.j2
+        dest: /home/lcia-dna/oozie-cli/{{ jobname }}/job.properties_test
+      vars: 
+        - jobname: "{{ item.jobname }}" 
+        - jobid: "{{ item.jobid }}"
+        - reloaddate1: "{{ rlddate1 }}"
+        - reloaddate2: "{{ rlddate2 }}"
+      with_items: 
+        - "{{ oozielist2 }}" 
+
+    #- name: Running Job 2 
+    #  include_tasks: wex_reload_ided2.yml
+    #  vars: 
+    #    - jobname: "{{ item.jobname }}" 
+    #    - jobid: "{{ item.jobid }}"
+    #  with_items: 
+    #    - "{{ oozielist2 }}" 
+

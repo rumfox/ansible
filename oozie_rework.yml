@@ -1,0 +1,45 @@
+# -----------------------------------------------------------------------------------------------------------
+# Program : oozie_rework.yml
+# Creator : Lee Sang Hyoung
+# Syntax 1: ansible-playbook oozie_rework.yml -e "reworkdate='20180126'" 
+# Syntax 2: ansible-playbook oozie_rework.yml --extra-vars '{"reworkdate":[20180126,20180127]}'
+# -----------------------------------------------------------------------------------------------------------
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: yes
+  become_user: lcia-dna
+  become_method: sudo
+  vars:
+    jobname: 
+      - 'kosk003'
+
+  tasks:
+    - name: Change STDR_DATE
+      lineinfile:
+        path: /home/lcia-dna/oozie-cli/kosk003/job.properties
+        regexp: '^STDR_DATE'
+        line: STDR_DATE={{ item[1] }}
+      register: propertiescall
+      with_nested:
+        - jobname
+        - "{{ reworkdate }}"
+      loop_control:
+        pause: 5
+
+    - name: Print Job Result 1
+      debug:
+        msg: "Job Result: {{ propertiescall }}"
+
+    #- name: Oozie job rework  
+    #  command: |-
+    #    oozie job --oozie
+    #    http://10.109.2.73:11000/oozie
+    #    -config /home/lcia-dna/oozie-cli/kosk003/job.properties
+    #    -run
+    #  register: ooziejobcall
+
+    #- name: Print Job Result 2
+    #  debug:
+    #    msg: "Job Result: {{ ooziejobcall }}"
+

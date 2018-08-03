@@ -1,0 +1,38 @@
+---
+- hosts: lcia-etl01
+  remote_user: admin
+  become: true
+  become_user: dsadm
+  become_method: sudo
+  vars:
+    - project: "LCIA_DEV"
+    - jobname: "Veriable_TEST"
+  tasks:
+    - name: DataStage ETL Job 1
+      shell: |- 
+        . `cat /.dshome`/dsenv &&  
+        ${DSHOME}/bin/dsjob -run -wait -jobstatus {{ project }} {{ jobname }} 
+      register: ansibleresult
+      async: 10000
+      poll: 0 
+
+    - name: 'check on fire and forget task'
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 30
+      delay: 3
+
+    - name: Job Result (SUCCEEDED)
+      debug:
+        msg: "{{ job_result }}"
+      when: job_result.rc == 1 
+
+    #- name: DataStage ETL Job 2 
+    #  when: ansibleresult.rc in [1,2,3] 
+    #  register: ansibleresult2
+
+    #- debug: 
+    #    msg: "DataStage Work Result: {{ ansibleresult2.stdout }}"
+

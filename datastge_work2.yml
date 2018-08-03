@@ -1,0 +1,40 @@
+---
+- hosts: lcia-etl01
+  remote_user: admin
+  become: true
+  become_user: dsadm
+  become_method: sudo
+
+  tasks:
+    - name: DataStage ETL Job 1
+      #shell: . `cat /.dshome`/dsenv
+      shell: . /lcia/datastage/Engine/InformationServer/Server/DSEngine/dsenv 
+      register: ansibleresult
+
+    - debug: 
+        msg: "DataStage Work Result: {{ ansibleresult.stdout }}"
+
+    - name: DataStage ETL Job 2
+      #shell: "echo $DSHOME"
+      #shell: whoami
+      command: /lcia/datastage/Engine/InformationServer/Server/DSEngine/bin/dsjob -run -wait -jobstatus "" ""
+      register: ansibleresult2
+
+    - debug: 
+        msg: "DataStage Work Result2: {{ ansibleresult2.stdout }}"
+
+    #- name: Print Job Result
+    #  debug: 
+    #    msg: "DataStage Work Result: {{ ansibleresult.stdout }}"
+
+    #- name: DataStage ETL Job 1
+    #  shell: |-
+    #    /lcia/datastage/Engine/InformationServer/Server/DSEngine/bin/dsjob
+    #    source /lcia/datastage/Engine/InformationServer/Server/DSEngine/dsenv & 
+    #    /lcia/datastage/Engine/InformationServer/Server/DSEngine/bin/dsjob 
+    #    cat /lcia/datastage/Engine/InformationServer/Server/DSEngine/dsenv & 
+    #    /lcia/datastage/Engine/InformationServer/Server/DSEngine/bin/dsjob -run -wait -jobstatus "" ""
+    #  become: true
+    #  become_user: dsadm
+    #  become_method: sudo 
+    #  register: ansibleresult

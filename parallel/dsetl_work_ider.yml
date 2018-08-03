@@ -1,0 +1,31 @@
+####################################################################
+# 1. Program      : dsetl_work_ider.yml
+# 2. Description  : when after product info changed.  
+# 3. Creator      : Lee Sang Hyoung
+# 4. Syntax (ALL) : ansible-playbook dsetl_work_ider.yml 
+####################################################################
+---
+- hosts: lcia-etl01
+  remote_user: admin
+  become: true
+  become_user: dsadm
+  become_method: sudo
+
+  vars:
+    #- project: "LCIA"
+    - project: "LCIA_DEV"
+
+  tasks:
+    - name: DataStage job run in asynchronously. 
+      vars: 
+        datastage_jobs: 
+          #- "IDDZ_ANA_SAL20310_F"
+          #- "IDDZ_ANA_SAL20110_F"
+          #- "IDDZ_ANA_SAL20210_F"
+          - "Veriable_TEST"
+          - "Veriable_TEST_01"
+        etljob: "{{ item }}"
+      include_tasks: dsetl_work_ided.yml 
+      with_items:
+        - "{{ datastage_jobs | batch(3) | list }}"
+
