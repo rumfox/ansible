@@ -1,0 +1,25 @@
+---
+- name: Connect to Windows node
+  hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Enable WinRM
+      win_command: winrm quickconfig -quiet
+
+    - name: Install pywinrm package
+      pip:
+        name: pywinrm 
+        state: present 
+
+    - name: Set up WinRM connection
+      connection: winrm
+      become: yes
+      become_method: runas 
+      become_user: Administrator 
+      vars:
+        ansible_winrm_transport: kerberos
+        ansible_winrm_server_cert_validation: ignore
+
+    # Add your desired tasks here
+    - name: Example task
+      win_shell: echo "Hello, Windows!"

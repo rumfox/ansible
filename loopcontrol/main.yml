@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  tasks: 
+  - include_tasks: inner.yml
+    with_items:
+      - 1
+      - 2
+      - 3
+    loop_control:
+      loop_var: outer_item

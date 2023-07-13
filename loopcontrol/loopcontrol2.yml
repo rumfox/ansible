@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  tasks: 
+    - name: create servers
+      digital_ocean:
+        name: "{{ item.name }}"
+        state: present
+      with_items:
+        - name: server1
+          disks: 3gb
+          ram: 15Gb
+          network:
+            nic01: 100Gb
+            nic02: 10Gb
+            #...
+      loop_control:
+        label: "{{item.name}}"

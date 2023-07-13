@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+# become: true
+# remote_user: admin
+# become_user: cognos
+# become_method: sudo
+  
+  tasks:
+    - name: "#################### Role 테스트 (role.yml) ####################"
+      shell: ls
+      register: rslt 
+
+    - debug:
+        msg:
+          - "호출 : {{ rslt.stdout }}"
+
+    #################################################
+    # "include_role"을 통해 tasks에서 호출할 수 있음     
+    #################################################
+    - name: "####################### Role Call Test #######################  " 
+      include_role: 
+        name: test2
+  
+  ###################
+  # roles로 호출 
+  ###################  
+  roles:
+    - role: test
+
+  pre_tasks:
+    - name: "#################### Role 테스트 pre-tasks ####################"
+      shell: ps
+      register: rslt 
+
+    - debug:
+        msg:
+          - "pre-tasks 호출 : {{ rslt.stdout }}"
+
+  post_tasks:
+    - name: "#################### Role 테스트 post-tasks ####################"
+      shell: whoami
+      register: rslt 
+
+    - debug:
+        msg:
+          - "post-tasks 호출 : {{ rslt.stdout }}"
+
+    #################################################
+    # "include_role"을 통해 tasks에서 호출할 수 있음     
+    #################################################
+    - name: "####################### Role Call Test #######################  " 
+      include_role: 
+        name: test
+ 

@@ -1,0 +1,12 @@
+#Create by Template at 2018-01-08T07:25:45Z
+
+127.0.0.1 lcia-dev01
+10.109.2.86 ansible-server
+192.168.1.101 ansible-node01
+192.168.1.102 ansible-node02
+192.168.1.103 ansible-node03
+192.168.1.104 ansible-node04
+192.168.1.105 ansible-node05
+192.168.1.106 ansible-node06
+192.168.1.107 ansible-node07
+192.168.1.108 ansible-node08

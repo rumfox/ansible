@@ -1,0 +1,455 @@
+##########################################################################################
+# Program : wex_service_start
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook -t WEX wex_service_start.yml
+#           ansible-playbook -t WEX wex_service_start.yml -t VMON
+#           ansible-playbook -t WEX wex_service_start.yml -t VMON,WEX
+#           ansible-playbook -t WEX wex_service_start.yml -t WEX,DNA,DW
+##########################################################################################
+---
+#############################################################
+# 작업내용 : WEX VM 시작
+# Woking Server : WEX 01,02,03,04번
+#############################################################
+- hosts: localhost
+  tags:
+    - VMON
+
+  tasks:
+    ############################################################
+    # WEX VM 시작
+    ############################################################
+    - name: "WEX VM Start REST API CALL "
+      uri:
+        url: https://10.210.31.10:9440/api/nutanix/v2.0/vms/{{ item.vmuuid }}/set_power_state/
+        method: POST
+        user: admin
+        password: Nutanix/4u!
+        body: '{"transition": "ON", "uuid": "{{ item.vmuuid }}"}'
+        validate_certs: no
+        body_format: json
+        force_basic_auth: yes
+        status_code: 201
+      register: job_result
+      ignore_errors: yes
+      with_items:
+        - { vmuuid: d7169f77-262b-4b96-a9e7-8837ecc7a4e3 }
+        - { vmuuid: 5ad7d04f-10cc-4826-8412-7c79ac46d8e2 }
+        - { vmuuid: 620a071c-50a1-41d8-b9a2-32664cff2032 }
+        - { vmuuid: 738a529c-31af-44a1-bf2a-5ca104b42c2e }
+
+    - name: WEX VM Start REST API CALL 결과
+      debug:
+        msg:
+          - "{{ job_result }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+#############################################################
+# 작업내용 : WEX VM 시작 후 SSH연결 상태 확인 
+# Woking Server : WEX 01,02,03,04번
+# lcia-dnawex01,lcia-dnawex02,lcia-dnawex03,lcia-dnawex04
+#############################################################
+- hosts: lcia-dnawex01,lcia-dnawex02,lcia-dnawex03,lcia-dnawex04
+  gather_facts: no
+  tags:
+    - VMON
+
+  tasks:
+    ############################################################
+    # WEX VM Wait for system to become reachable
+    ############################################################
+    - name: Wait 600 seconds, but only start checking after 60 seconds
+      wait_for_connection:
+        delay: 100
+        timeout: 600
+
+    - name: VM Gather facts for first time
+      setup:
+      register: job_result
+
+    - name: WEX VM Start 후 접속상태
+      debug:
+        msg:
+          - "{{ job_result.ansible_facts.ansible_fqdn }}"
+          - "{{ job_result.ansible_facts.ansible_hostname }}"
+          - "{{ job_result.ansible_facts.ansible_env.SSH_CONNECTION }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+#############################################################
+# 작업내용 : WEX CCL 실행  
+# Woking Server : WEX 02,03,04번
+#############################################################
+- hosts: lcia-dnawex02,lcia-dnawex03,lcia-dnawex04
+  remote_user: admin
+  become_user: esadmin
+  become: true
+  become_method: sudo
+  tags:
+    - WEX
+
+  tasks:
+    - name: "WEX CCL Start " 
+      shell: |
+        . /opt/IBM/es/nodeinfo/esprofile
+        sh /opt/IBM/es/bin/startccl.sh    
+      ignore_errors: yes
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: "Check on WEX CCL Start"
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: WEX CCL Start status
+      debug:
+        msg: 
+          - "{{ job_result.stdout }}"   
+          - "Ѱ  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+    - pause: seconds=2
+
+#############################################################
+# 작업내용 : WEX Start 실행  
+# Woking Server : WEX 01번
+#############################################################
+- hosts: lcia-dnawex01
+  remote_user: admin
+  become_user: esadmin
+  become: true
+  become_method: sudo
+  tags:
+    - WEX
+
+  tasks:
+    ############################################################
+    # WEX 서비스 시작
+    ############################################################
+    - name: "WEX Start " 
+      shell: |
+        . /opt/IBM/es/nodeinfo/esprofile
+        esadmin system startall   
+      ignore_errors: yes
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: "WEX Start Ready .."
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: "WEX Start result status"
+      debug:
+        msg: 
+          - "{{ job_result.stdout }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+    - pause: seconds=2
+
+    ############################################################
+    # WEX 서비스 성공여부 확인 
+    ############################################################
+    - name: Check WEX Process
+      shell: |
+        . /opt/IBM/es/nodeinfo/esprofile
+        esadmin check | grep Main2.docproc.node | grep Started | wc -l
+      register: statuscheck
+      until: statuscheck.stdout == "3"
+      ignore_errors: True
+      retries: 20
+      delay: 10
+
+    - name: WEX Process Start (SUCCEEDED)
+      debug:
+        msg: "{{ statuscheck.stdout }}"
+      when: statuscheck.stdout == "3"
+
+    - name: WEX Process Start (FAILED)
+      debug:
+        msg: "{{ statuscheck.stdout }}"
+      when: statuscheck.stdout != "3"
+      #failed_when: statuscheck.stdout != "3"
+
+    ############################################################
+    # 인덱스 및 검색 <status> 확인 (1: on, 0:off)
+    # Parser 상태 확인 : wex_service_pars.yml
+    # Search 상태 확인 : wex_service_srch.yml
+    # Python Moduel    : wex_parsear_status.py(wex01:/home/esadmin/ansible_wex)
+    ############################################################
+    - name: "WEX Parser Status Checking"
+      include_tasks: wex_service_pars.yml
+      vars:
+        - sessiontype: "{{ item[0] }}"
+        - sessionkind: "{{ item[1] }}"
+      with_nested:
+        - [ 'Parser' ]
+        - [ 'Main2', 'FACEBOOK', 'FACEBOOK-REPLY','Report' ]
+
+    - name: "WEX Search Status Checking"
+      include_tasks: wex_service_srch.yml
+      vars:
+        - sessiontype: "{{ item[0] }}"
+        - sessionkind: "{{ item[1] }}"
+      with_nested:
+        - [ 'Search' ]
+        - [ 'Main2', 'FACEBOOK', 'FACEBOOK-REPLY','Report' ]
+
+    ############################################################
+    # 인덱싱 컬렉션 Session 아이디 수집 
+    ############################################################
+    - name: Gathering WEX Collection SESSION ID Information
+      shell: |
+        . /opt/IBM/es/nodeinfo/esprofile
+        esadmin report sessions -type crawler -format full > /home/esadmin/ansible_wex/wex_session.log
+        /home/esadmin/ansible_wex/wex_sessionid_get.py
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: 'Check on Gathering WEX Collection SESSION ID Information '
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: Gathering WEX Collection ID Information 
+      debug:
+        msg: "{{ job_result.stdout }}"
+
+    ############################################################
+    # 크롤러 & 크롤링 시작 
+    ############################################################
+    - name: Start WEX Cralwer
+      shell: cat /home/esadmin/ansible_wex/wex_session.dat
+      register: crawler_session
+
+    - name: "WEX 크롤링"
+      include_tasks: wex_service_idx.yml
+      vars:
+        - sessionid: "{{ item }}"
+      with_items:
+        - "{{ crawler_session.stdout_lines }}"
+
+    ###########################################
+    # 매월 2일 전월 마지막날 Main2 크롤링 
+    ###########################################
+    - name: Start WEX Cralwer(Last Month Main2)
+      shell: cat /home/esadmin/ansible_wex/wex_session_pm.dat
+      register: crawler_session
+      when: ansible_date_time.day == "02"
+
+    - name: "WEX 크롤링(Last Month Main2)"
+      include_tasks: wex_service_idx.yml
+      vars:
+        - sessionid: "{{ item }}"
+      with_items:
+        - "{{ crawler_session.stdout_lines }}"
+      when: ansible_date_time.day == "02"
+
+    ###########################################
+    # 매년 1월 2일 전년도 FaceBook Reply 크롤링
+    ###########################################
+    - name: Start WEX Cralwer(Last Year FACEBOOK REPLY)
+      shell: cat /home/esadmin/ansible_wex/wex_session_py.dat
+      register: crawler_session
+      when: ansible_date_time.month == "01" and ansible_date_time.day == "02"
+
+    - name: "WEX 크롤링(Last Year FACEBOOK REPLY)"
+      include_tasks: wex_service_idx.yml
+      vars:
+        - sessionid: "{{ item }}"
+      with_items:
+        - "{{ crawler_session.stdout_lines }}"
+      when: ansible_date_time.month == "01" and ansible_date_time.day == "02"
+
+
+    ############################################################
+    # 데이터 크롤링 상태 확인
+    ############################################################
+    - name: "WEX Crawling Status checking : Export 파일 생성작업 중인지 확인(시작)"
+      shell: >
+        lsof +D /lcia/esadmin/export/ 
+        | grep ExportLCIA_Main2_{{'%Y-%m-%d'|strftime((ansible_date_time.epoch|int)-(86400 * 0))}} 
+        | wc -l
+      register: statuscheck
+      ignore_errors: True
+      until: statuscheck.stdout == "0"
+      retries: 600
+      delay: 10
+
+    - name: "WEX Crawling Status checking : Export 파일 생성작업 중인지 확인(결과)" 
+      debug:
+        msg: "{{ statuscheck.stdout }}"
+
+    ############################################################
+    # 패싯 추출 전송 & Search Reset
+    ############################################################
+    - name: Passit Export Data Transfer
+      shell: |
+        #sh /home/esadmin/lcia_ifi/sh/wexExport.sh
+        #sh /home/esadmin/lcia_ifi/sh/wexNewWord.sh 
+        #sh /home/esadmin/lcia_ifi/sh/wexFacebook.sh 
+        sh /home/esadmin/bin/reset_search.sh
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: "Check : WEX Passit Data Transfer & Search Reset" 
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: "Result : WEX Passit Data Transfer & Search Reset" 
+      debug:
+        msg:
+          - "{{ job_result.stdout }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+    ############################################################
+    # WEX Warmingup 
+    ############################################################
+    - name: "WEX Warming up "
+      shell: |
+        sh /home/esadmin/lcia_ifi/sh/wexWarmingUp.sh
+      register: ansibleresult
+      async: 1200
+      poll: 0
+
+    - name: "WEX Warming up "
+      async_status: jid={{ ansibleresult.ansible_job_id }}
+      ignore_errors: True
+      register: job_result
+      until: job_result.finished
+      retries: 120
+      delay: 10
+
+    - name: "Result : WEX Warming up "
+      debug:
+        msg:
+          - "{{ job_result.stdout }}"
+          - "Ѱ {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+
+#############################################################
+# 작업내용 : 패싯추출 작업 
+# Woking Server : Edge노드 2번 
+#############################################################
+- hosts: lcia-dnaedge02
+  remote_user: admin
+  become: yes
+  become_user: lcia-dna
+  become_method: sudo
+  vars:
+    #################################################################
+    # 작업시작일자 / 종료 일자 
+    # oozie job : 패싯추출내역 초기/재적재, 일별버즈집계 초기/재적재
+    #################################################################
+    - oozielist:
+      - {jobname: WFO_0010_SOR_DD, jobid: hue-oozie-1512116282.15}
+  tags:
+    - DNA
+
+  tasks:
+    #############################
+    # 패싯추출내역 초기/재적재
+    # 일별버즈집계 초기/재적재
+    #############################
+    - template:
+        src: /etc/ansible/template/WFO_WEX_SERVICE.j2
+        dest: /home/lcia-dna/oozie-cli/{{ jobname }}/job.properties
+      vars:
+        - jobname: "{{ item.jobname }}"
+        - jobid: "{{ item.jobid }}"
+        - reloaddate: "{{ lookup('pipe','date +%Y%m%d') }}"
+      with_items:
+        - "{{ oozielist }}"
+
+    - name: OOZIE JOB for WEX 
+      include_tasks: wex_reload_ided.yml
+      vars:
+        - jobname: "{{ item.jobname }}"
+        - jobid: "{{ item.jobid }}"
+      with_items:
+        - "{{ oozielist }}"
+
+#############################################################
+# 작업내용 : DataStage WEX Job 실행  
+# Woking Server : ETL서버
+# oozie "WFO_0010_SOR_DD"에서 호출해 주석 처리 
+#############################################################
+#- hosts: lcia-etl01
+#  remote_user: admin
+#  become: true
+#  become_user: dsadm
+#  become_method: sudo
+#  vars:
+#    - project: "LCIA"
+#    - jobname: "Batch_C_MAIN_03"
+#   #- jobname: "Batch_I_SA_SOC_01"
+#   #- project: "LCIA_DEV"
+#   #- jobname: "Veriable_TEST"
+#  tags:
+#    - DW
+
+#  tasks:
+#    ########################################################################
+#    # DW 일별버즈/버즈조합/버즈TOP제품조합 집계, 신조어/페이스북이벤트 내역
+#    ########################################################################
+#    - name: job 3 DataStage {{ jobname }}
+#      shell: |
+#        . `cat /.dshome`/dsenv
+#        ${DSHOME}/bin/dsjob -run -mode RESET {{ project }} {{ jobname }}
+#        ${DSHOME}/bin/dsjob -run -wait -jobstatus {{ project }} {{ jobname }}
+#      ignore_errors: True
+#      register: ansibleresult
+#      async: 27000
+#      poll: 0
+
+#    - name: 'Check on fire and forget data stage task'
+#      async_status: jid={{ ansibleresult.ansible_job_id }}
+#      ignore_errors: True
+#      register: job_result
+#      until: job_result.finished
+#      retries: 600
+#      delay: 45
+
+#    - name: Data stage result (SUCCEEDED)
+#      debug:
+#        msg:
+#          - "Run Command : {{ job_result.cmd }}"
+#          - "Start time  : {{ job_result.start }}"
+#          - "End time    : {{ job_result.end }}"
+#          - "Pass tiem   : {{ job_result.delta }}"
+#          - "Return code : {{ job_result.rc }}"
+#      when: job_result.rc == 1
+
+#    - name: Data stage result (WARNING)
+#      debug:
+#        msg: "{{ job_result }}"
+#      when: job_result.rc == 2
+
+#    - name: Data stage result (FAILED)
+#      debug:
+#        msg: "{{ job_result }}"
+#      when: job_result.rc == 3
+#      #failed_when: job_result.rc == 3
+
+#    - name: Data stage result (NOT IN 1,2,3)
+#      debug:
+#        msg: "{{ job_result }}"
+#      when: job_result.rc not in [1,2,3]
+#      #failed_when: job_result.rc not in [1,2,3]
+
+

@@ -1,0 +1,20 @@
+---
+- name: "check wex process {{ sessionid }} (1)"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node1 getIndexBuildStatusAll > /home/esadmin/ansible_wex/wex_idxstatus.log 
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node2 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log 
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node3 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    /home/esadmin/ansible_wex/wex_indexbuild_status.py
+    cat /home/esadmin/ansible_wex/wex_idxstatus.dat
+  register: statuscheck
+  ignore_errors: yes
+  #until: >
+  #  statuscheck.stdout.find("INDEXING") != -1
+  #retries: 10
+  #delay: 30
+
+- name: "WEX Crawling {{ sessionid }} status(1)"
+  debug:
+    msg: "{{ statuscheck.stdout }}"
+
