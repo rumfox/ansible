@@ -1,0 +1,23 @@
+---
+- hosts: lcia-dnaedge02
+  remote_user: admin
+
+  tasks:
+    - name: Ambari Hadoop Service Stop
+      uri:
+        url: https://10.109.2.73:7070/api/v1/clusters/lcia_digitaldna_bdp/services/HBASE -k 
+        method: PUT
+        user: admin
+        password: admin!@#
+        body: {"ServiceInfo": {"state": "INSTALLED"}}
+        body_format: json
+        headers: 
+          RequestInfo: 'X-Requested-By: ambari'
+        context: "Stop HBASE via REST"
+        force_basic_auth: no
+        validate_certs: no
+      register: result
+
+    - name: Ambari Service stop result log .. 
+      debug: 
+        until: result.stdout

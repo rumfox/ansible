@@ -1,0 +1,107 @@
+# ########################################################
+#  Message Use Case Test 
+#  CREATOR : LEE SANG HYOUNG
+#  CLI Run : ansible-playbook message_test.yml -t MSG7
+# ########################################################
+---
+- hosts: testnode
+  remote_user: admin
+
+  tasks:
+    #######################################
+    - name: "cut command test"
+      command: cut --delimiter=':' --fields=1 /etc/passwd
+      register: username_result
+      tags: MSG8
+
+    - name: username_result
+      debug: 
+        msg: "{{ username_result }}"
+      tags: MSG8
+    #######################################
+    - name: "return value test : register"
+      shell: sh message_test.sh
+      #shell: echo 1
+      register: shellrslt
+      tags: MSG7
+
+    - name: "return value test : debug"
+      debug:
+        msg: "{{ shellrslt.stdout }}"
+      when: shellrslt.stdout == "1"
+      tags: MSG7
+
+    #######################################
+    - name: Test Message Debug 1
+      shell: ls -l /lcia/ansible/ha*
+      register: ansibleresult
+      tags: 
+        - MSG1
+
+    - name: Print Job Result
+      debug: 
+        msg: 
+          - "Job result : "
+          - "{{ ansibleresult.stdout_lines }}"
+          - "{{ ansibleresult.stdout.split('\n')[0] }}"
+
+      tags: 
+        - MSG1
+   
+    - name: Test Message Debug 2
+      shell: ls -l /lcia/ansible/s*
+      register: ansibleresult2
+      tags: 
+        - MSG2
+
+    - name: Print Job Result
+      debug: 
+        msg: [
+          "Job result : ",
+          "{{ ansibleresult2.stdout_lines }}"
+        ]
+      tags: 
+        - MSG2
+
+    - name: Write file
+      copy:
+        dest: /lcia/ansible/test/msg_test.log
+        content: |
+          Hello World!
+          This is my file.
+      register: write_file_rslt
+      tags: MSG3
+
+    - name: Debug write_file_rslt
+      debug: 
+        msg: "{{ write_file_rslt }}"
+      when: write_file_rslt.checksum is defined
+        #var: write_file_rslt
+        #verbosity: 3
+      tags: MSG3
+
+    # --------------------------------------------
+    # Inventory file variables value debug
+    # --------------------------------------------
+    - name: Ansible Inventory Var Test
+      debug: 
+        msg: "{{ var_ssh_keys }} | {{ var_message }}"
+      tags: MSG4
+   
+    # ---------------------------------------------
+    # ansible_distribution Information debug 
+    # ---------------------------------------------
+    - name: Ansible distribution Information debug
+      debug: 
+        msg: "{{ ansible_distribution }} | {{ ansible_distribution_major_version }}"
+      tags: MSG5
+
+    # ---------------------------------------------
+    # regex_replace test
+    # ---------------------------------------------
+    - name: Ansible distribution Information debug
+      debug: 
+        msg: "{{'ID=0000934-180129134105491-oozie-oozi-W;Status=RUNNING'|
+        regex_replace('^ID=(.*)$','\\1')|
+        regex_replace(';Status=(.*)*','\\1') }}"
+      tags: MSG6

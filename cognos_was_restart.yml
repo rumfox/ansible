@@ -1,0 +1,47 @@
+# #########################################################################################
+# Program : cognos_was_restart.yml
+# Creator : Lee Sang Hyoung
+# Syntax : ansible-playbook cognos_was_restart.yml
+# #########################################################################################
+---
+- hosts: lcia-cognos01
+  remote_user: admin
+  become: true
+  become_user: cognos
+  become_method: sudo
+
+  tasks:
+    #############################
+    # Cognos tomcat 종료
+    #############################
+    - name: Cognos 재시작 - Stop
+      shell: /lcia/tomcat/bin/shutdown.sh
+      register: rslt
+      ignore_errors: yes
+      tags: STOP
+
+    - debug: 
+        msg: 
+          - "Cognos 종료 상태 : {{ rslt.stdout }}"
+      tags: STOP
+
+    #################################
+    # Cognos tomcat 시작 전 3초 대기 
+    #################################
+    - pause: seconds=3
+
+    #############################
+    # Cognos tomcat 시작
+    #############################
+    - name: Cognos 재시작 - Start
+      shell: setsid /bin/sh -i -c "/lcia/tomcat/bin/startup.sh" &> /tmp/null
+      register: rslt
+      ignore_errors: yes
+      tags: START
+
+    - debug: 
+        msg: 
+          - "Cognos 시작 상태 : {{ rslt.stdout }}"
+      tags: START
+
+

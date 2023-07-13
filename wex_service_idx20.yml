@@ -1,0 +1,238 @@
+##########################################################################################
+# Program     : wex_service_idx20.yml
+# Description : for the lcia wex service auto stop / start 
+# Syntax      : nothing (this file only be called from includer (wex_server_start20.yml)
+# Creator     : Lee Sang Hyoung
+##########################################################################################
+---
+############################################################
+# 크롤러 & 크롤링 시작
+# Session ID별 순차실행 (Includer파일에서 호출)
+############################################################
+- name: "● 1 Start WEX Cralwer"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile 
+    esadmin {{ sessionid }} start 
+    esadmin {{ sessionid }} startCrawl -options 3
+  register: crawlerstart
+
+- name: "● 1M WEX Crawling session : {{ sessionid }} start"
+  debug:
+    msg: 
+      - "{{ crawlerstart.stdout }}"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+      - "------------------------------"
+
+- pause: seconds=10
+
+############################################################
+# WEX 크롤러 대상 파일 존재여부 확인
+# session id별 대상 파일이 있으면 수행하고 없으면 PASS 
+# EXIST : status == 2 & (InsertedRecords + UpdatedRecords) > 0
+# PASS  : status != 2 & (InsertedRecords + UpdatedRecords) == 0
+############################################################
+- name: "● 2 Check wex crawling session : {{ sessionid }} indexing file 존재여부 check "
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid }} getCrawlSpaceStatusDetail -ts "jdbc:hive2://10.109.2.73:10000/lcia_sor;AuthMech=3" > /home/esadmin/ansible_wex/wex_idxcheck.log
+    /home/esadmin/ansible_wex/wex_indexbuild_check.py
+    cat /home/esadmin/ansible_wex/wex_idxcheck.dat
+  register: idxcheck
+
+####################################
+# READY(status=1) 상태일 경우 처리
+####################################
+- name: "● 3 Check wex crawling session : {{ sessionid }} indexing file 존재여부 check 2-1"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid }} getCrawlSpaceStatusDetail -ts "jdbc:hive2://10.109.2.73:10000/lcia_sor;AuthMech=3" > /home/esadmin/ansible_wex/wex_idxcheck.log
+    /home/esadmin/ansible_wex/wex_indexbuild_check.py
+    cat /home/esadmin/ansible_wex/wex_idxcheck.dat
+  register: idxfilecheck
+  ignore_errors: yes
+  until: >
+    idxfilecheck.stdout.find("EXIST") != -1 or idxfilecheck.stdout.find("PASS") != -1
+  retries: 700
+  delay: 45
+  when: idxcheck.stdout.find("READY") != -1
+
+####################################
+# PASS(status!=1,2) 상태일 경우 처리
+# Check Point 
+####################################
+- name: "● 4 Check wex crawling session : {{ sessionid }} indexing file 존재여부 check 2-1"
+  shell: |
+    cat /home/esadmin/ansible_wex/wex_idxcheck.dat
+  register: idxfilecheck
+  ignore_errors: yes
+  when: idxcheck.stdout.find("PASS") != -1  or idxcheck.stdout.find("EXIST") != -1
+
+###########################################################
+# 조건문을 지나면서 register된 내용이 사라지는 부분 보완 
+###########################################################
+- name: "● 5 크롤링 대상파일 ({{ sessionid }}) 확인 후 인덱싱 진행 위한 작업"
+  shell: cat /home/esadmin/ansible_wex/wex_idxcheck.dat
+  register: idxfilecheck
+
+- name: "● 5M Check WEX Crawling session : {{ sessionid }} indexing  file 존재여부 check "
+  debug:
+    msg:
+      - "WEX Crawling session : {{ sessionid }} indexing  file 존재여부 check"
+      - "{{ idxfilecheck.stdout }}"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+#  when: idxfilecheck.stdout is defined 
+
+############################################################
+# WEX 크롤러 시작 상태 확인
+# Indexing 상태까지 대기  
+# 크롤링 대상 파일이 있으면 Indexing. 없으면 pass.
+############################################################
+- name: "● 6 Check wex crawling session : {{ sessionid }} indexing start [1]"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node1 getIndexBuildStatusAll > /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node2 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node3 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node4 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    /home/esadmin/ansible_wex/wex_indexbuild_status.py
+    cat /home/esadmin/ansible_wex/wex_idxstatus.dat
+  register: statuscheck
+  ignore_errors: yes
+  until: >
+    statuscheck.stdout.find("INDEXINGINDEXINGINDEXINGINDEXING") != -1
+  retries: 30
+  delay: 20
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+- name: "● 6M Check WEX Crawling session : {{ sessionid }}  indexing start status [1]"
+  debug:
+    msg:
+      - "● 6M WEX Crawling session : {{ sessionid }} indexing start status"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+      - "------------------------------"
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+############################################################
+# WEX 크롤러 시작 성공여부 확인
+# Indexing에서 Waiting 상태로 바뀔때 까지 대기 
+# 크롤링 대상 파일이 있으면 Indexing. 없으면 pass.
+############################################################
+- name: "● 7 Check wex crawling session : {{ sessionid }} (1)"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node1 getIndexBuildStatusAll > /home/esadmin/ansible_wex/wex_idxstatus.log 
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node2 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log 
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node3 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node4 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    /home/esadmin/ansible_wex/wex_indexbuild_status.py
+    cat /home/esadmin/ansible_wex/wex_idxstatus.dat
+  register: statuscheck
+  ignore_errors: yes
+  until: >
+    statuscheck.stdout.find("WAITINGWAITINGWAITINGWAITING") != -1
+  retries: 600
+  delay: 45
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+- name: "● 7M WEX Crawling session : {{ sessionid }} indexing result (1)"
+  debug:
+    msg: 
+      - "● 7M WEX Crawling session : {{ sessionid }} indexing result (1)"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+      - "------------------------------"
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+############################################################
+# WEX 크롤러 시작 상태 확인
+# Indexing 상태까지 대기 
+# 크롤링 대상 파일이 있으면 Indexing. 없으면 pass.
+# 600초 (10분) 대기 에서 Indexing 상태를 체크하는 것으로 변경 
+#- pause: seconds=600
+############################################################
+- name: "● 8 Check wex crawling session : {{ sessionid }} start [2]"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node1 getIndexBuildStatusAll > /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node2 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node3 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node4 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    /home/esadmin/ansible_wex/wex_indexbuild_status.py
+    cat /home/esadmin/ansible_wex/wex_idxstatus.dat
+  register: statuscheck
+  ignore_errors: yes
+  until: >
+    statuscheck.stdout.find("INDEXINGINDEXINGINDEXINGINDEXING") != -1
+  retries: 30
+  delay: 20
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+- name: "● 8M Check wex crawling session : {{ sessionid }} indexing start [2]"
+  debug:
+    msg:
+      - "● 8M WEX Crawling session : {{ sessionid }} indexing start status [2]"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+      - "------------------------------"
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+############################################################
+# Waiting 상태까지 대기 
+# WEX 크롤러 종료 후 자동 재시작을 확인하기 위한 작업 
+# Indexing에서 Waiting 상태로 바뀔때 까지 대기 
+# 정상이면 종료, 진행중이면 끝날때까지 대기
+############################################################
+- name: "● 9 check wex process {{ sessionid }} (2)"
+  shell: |
+    . /opt/IBM/es/nodeinfo/esprofile
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node1 getIndexBuildStatusAll > /home/esadmin/ansible_wex/wex_idxstatus.log 
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node2 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log 
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node3 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    esadmin {{ sessionid | regex_replace('(\.[^.]*)') | string }}.indexservice.node4 getIndexBuildStatusAll >> /home/esadmin/ansible_wex/wex_idxstatus.log
+    /home/esadmin/ansible_wex/wex_indexbuild_status.py
+    cat /home/esadmin/ansible_wex/wex_idxstatus.dat
+  register: statuscheck
+  ignore_errors: yes
+  until: >
+    statuscheck.stdout.find("WAITINGWAITINGWAITINGWAITING") != -1
+  retries: 600
+  delay: 45
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+- name: "● 9M WEX Crawling session : {{ sessionid }} indexing result status(2)"
+  debug:
+    msg: 
+      - "● 9M WEX Crawling session : {{ sessionid }} indexing result (2)"
+      - "------------------------------"
+      - "  {{ lookup('pipe','date +%Y-%m-%d/%H:%M:%S') }}"
+      - "------------------------------"
+  when: idxfilecheck.stdout.find("EXIST99") != -1 
+# when: idxfilecheck.stdout.find("EXIST") != -1 
+
+- pause: seconds=10
+
+############################################################
+# Main2 Indexer 초기화
+############################################################
+#- name: " ● 10 {{ sessionid }} Indexer 초기화 "
+#  shell: |
+#    sh /home/esadmin/bin/reset_index20.sh
+#  register: resetcheck
+#  ignore_errors: yes
+#  when: sessionid | regex_replace('(\.[^.]*)') | string == "Main6"
+
+#- name: " ● 10M {{ sessionid }} Indexer 초기화(reset) 결과"
+#  debug:
+#    msg: "{{ resetcheck.stdout }}"
+#  when: resetcheck.stdout is defined
+

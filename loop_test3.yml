@@ -1,0 +1,19 @@
+# ---------------------------------------------------
+# ansible-playbook loop_test3.yml -e '{"rlddate":[20180126,20180127]}'
+# ---------------------------------------------------
+---
+- hosts: localhost
+  #vars:
+  #  nested_list3:
+  #    - { val1: oneone, val2: 11}
+  #    - { val1: twotwo, val2: 22}
+  #    - { val1: thrthr, val2: 33}
+  tasks:
+    - name: "Nested Loop test"
+      debug: 
+        msg: "{{ rlddate | max() }} "
+     
+      #with_nested: 
+      #  - ['20180126','20180127']
+      #  - "{{ nested_list3 }}" 
+

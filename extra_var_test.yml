@@ -1,0 +1,8 @@
+---
+- hosts: lcia-dev01
+  gather_facts: no 
+  tasks:
+    - debug: var=test_list
+      with_items:
+        - test_list: "{{ test_list }}"
+

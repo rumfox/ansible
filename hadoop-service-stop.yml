@@ -1,0 +1,60 @@
+# ---------------------------------------------------------------------------------------
+# Name        : hadoop-service-stop.yml
+# Description : hadoop service stop using by ambari rest api
+# Creator     : Lee Sang Hyoung
+# Syntax      : ansible-playbook hadoop-service-stop.yml -t INDI -e "stop_component=OOZIE"
+# ---------------------------------------------------------------------------------------
+---
+- hosts: localhost 
+  remote_user: admin
+
+  tasks:
+    - name: Ambari Hadoop Service Stop Individual
+      shell: >
+        curl -u admin:'admin!@#'
+        -i -H 'X-Requested-By: ambari' -X PUT
+        -d '{"RequestInfo": {"context" :"Stop '{{ stop_component }}' via REST"},
+        "Body": {"ServiceInfo": {"state": "INSTALLED"}}}'
+        https://lcia-dnaedge02:7070/api/v1/clusters/lcia_digitaldna_bdp/services/'{{ stop_component }}'
+        --insecure
+      vars:
+        - stop_component: "{{ stop_component }}"
+      tags:
+        - INDI
+
+    - name: Ambari Hadoop Service Stop All 
+      shell: >
+        curl -u admin:'admin!@#'
+        -i -H 'X-Requested-By: ambari' -X PUT
+        -d '{"RequestInfo": {"context" :"Stop '{{ item }}' via REST"},
+        "Body": {"ServiceInfo": {"state": "INSTALLED"}}}'
+        https://lcia-dnaedge02:7070/api/v1/clusters/lcia_digitaldna_bdp/services/'{{ item }}'
+        --insecure
+      with_items:
+        #- ZOOKEEPER
+        #- HDFS
+        #- MAPREDUCE2
+        #- YARN
+        #- HIVE
+        #- SPARK2
+        #- AMBARI_METRICS
+        - HBASE
+        #- OOZIE
+        #- ZEPPELIN
+        #- ANALYTICSERVER
+        #- RANGER
+      tags:
+        - ALL
+
+  #tasks:
+  #  - name: Ambari Hadoop Service Stop
+  #    shell: >
+  #      curl -u admin:'admin!@#' 
+  #      -i -H 'X-Requested-By: ambari' -X PUT 
+  #      -d '{"RequestInfo": {"context" :"Stop HBASE via REST"}, 
+  #      "Body": {"ServiceInfo": {"state": "INSTALLED"}}}' 
+  #      https://lcia-dnaedge02:7070/api/v1/clusters/lcia_digitaldna_bdp/services/HBASE 
+  #      --insecure
+  #    tags:
+  #      - HBASE
+

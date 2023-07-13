@@ -1,0 +1,51 @@
+---
+# -----------------------------------------------------------------------------------------
+# Program : dwdb_work.yml
+# Creator : Lee Sang Hyoung
+# Syntax : ansible-playbook dwdb_work.yml 
+# -----------------------------------------------------------------------------------------
+- hosts: lcia-dwdb01
+  remote_user: admin
+  become: true
+  become_user: lciaetl
+  become_method: sudo
+  vars:
+    - db2profile : "/lcia/db2inst1/sqllib/db2profile"
+    - db2path: "/lcia/db2inst1/sqllib/bin:/lcia/db2inst1/sqllib/adm:/lcia/db2inst1/sqllib/misc:db2tss/bin" 
+
+  tasks:
+    - name: DWDB Job 1
+      shell: |-
+        . {{ db2profile }} &&  
+        db2 connect to lciadwdb && 
+        db2 "select current_timestamp from sysibm.sysdummy1" &&  
+        db2 terminate
+      ignore_errors: False
+      register: ansibleresult
+
+    - debug: 
+        msg: 
+          - "Work Result : "
+          - "{{ ansibleresult.stdout.split('\n')[14] }}"
+          - "{{ ansibleresult.stdout_lines }}"
+
+    - name: DWDB Job 1-1
+      command: "echo {{ ansibleresult.stdout.split('\n')[10] }}"
+      register: ansibleresult1
+      ignore_errors: True
+      when: ansibleresult|succeeded
+
+    - debug: 
+        msg: "DWDB Work Result(Success) .. {{ ansibleresult1.stdout }}"
+      when: ansibleresult|succeeded
+
+    - name: DWDB Job 1-2
+      shell: echo {{ ansibleresult.stdout_lines }} 
+      register: ansibleresult2
+      ignore_errors: True
+      when: ansibleresult|failed
+
+    - debug: 
+        msg: "DWDB Work Result(Fail) .. {{ ansibleresult2.stdout_lines }}"
+      when: ansibleresult|failed
+

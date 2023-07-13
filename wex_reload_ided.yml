@@ -1,0 +1,44 @@
+#########################################################################################
+#  Program     : wex_reload_ided.yml
+#  Description : for the lcia dna data reloading job (2 date parameter)
+#  Syntax      : nothing (this file only be called from includer ("wex_reload_ider.yml)
+#  Creator     : Lee Sang Hyoung
+##########################################################################################
+---
+- name: Oozie data reload job run 
+  command: >
+    oozie job --oozie
+    http://10.109.2.73:11000/oozie
+    -config /home/lcia-dna/oozie-cli/{{ jobname }}/job.properties
+    -run
+  register: ooziejobcall
+
+- name: Oozie job process id get and status check  
+  command: > 
+    oozie jobs --oozie http://10.109.2.73:11000/oozie 
+    -filter ID={{ ooziejobcall.stdout[5:] }}\;Status=RUNNING | grep "No Jobs match"
+  register: statuscheck 
+  until: statuscheck.stdout.find("No Jobs match") != -1
+  retries: 600
+  delay: 45
+
+- name: Oozie job process id status success check  
+  command: > 
+    oozie jobs --oozie http://10.109.2.73:11000/oozie
+    -filter ID={{ statuscheck.cmd[5:6][0] | 
+    regex_replace('^ID=(.*)$','\1') |  
+    regex_replace(';Status=(.*)*','\1') }} |
+    awk '{print $1 $2 $3}' | grep "SUCCEEDED"
+  register: ooziejobresult
+
+- name: Job Result (SUCCEEDED)
+  debug:
+    msg: "{{ ooziejobresult.stdout }}"
+  when: ooziejobresult.stdout.find("SUCCEEDED") != -1 
+
+- name: Job Result (FAILED)
+  debug:
+    msg: "{{ ooziejobresult.stdout }}"
+  when: ooziejobresult.stdout.find("SUCCEEDED") == -1 
+  #failed_when: ooziejobresult.stdout.find("SUCCEEDED") == -1 
+

@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------------------
+# Name        : filter_test.yml
+# Description : filter feature test 
+# Syntax      : ansible-playbook filter_test.yml -e '{"loaddt":['20180126','20180127']}'
+# ---------------------------------------------------------------------------------------
+---
+- hosts: localhost
+  #vars: 
+  #  - modedate1: "date +%Y%m%d -d '" 
+  #  - modedate2: "{{ loaddt }}"
+  #  - modedate3: " -1 day'"
+
+  tasks: 
+    - name: "DataCalc" 
+      debug: 
+        msg: "{{ reloaddate }}"
+      vars:
+        - reloaddate: "{{  lookup('pipe', modedate1 + modedate2 + modedate3 ) }}"
+        - modedate1: "date +%Y%m%d -d '" 
+        - modedate2: "{{ loaddt }}"
+        - modedate3: " -1 day'"
+
+        # --------------------------------------------------------------------------------------
+        #- reloaddate: "{{  lookup('pipe', 'date -d \"1 day ago\" +\"%Y%m%d\"') }}"
+        #- reloaddate: "{{  lookup('pipe', 'date -d \"1 day ago\" +\"%Y%m%d\"') }}"
+        #- reloaddate: "{{  lookup('pipe', 'date -d \"1 day ago\" +%Y%m%d') }}"
+        #command: date '+%Y%m%d' -d '{{reloaddate}} -1 day'
+        #- reloaddate: "{{  lookup('pipe', 'date +%Y%m%d -d \"{{loaddt}}\" \"-1 day\"') }}"
+        #- reloaddate: "{{  lookup('pipe', 'date +%Y%m%d -d '  '\''{{loaddt}} -1 day\'   ) }}"
+        #- reloaddate: "{{  lookup('pipe', 'date +%Y%m%d -d '  + item +  ' -1 day' ) }}"
+        # --------------------------------------------------------------------------------------

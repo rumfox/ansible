@@ -1,0 +1,22 @@
+#############################################################################################
+# Program : yum_work.yml
+# Creator : Lee Sang Hyoung
+# Syntax 1: ansible-playbook yum_work.yml -e "host= module= " 
+# Syntax 2: ansible-playbook yum_work.yml -e "host=nutanixnode module=['lvm2-cluster','gfs2-utils']" --ask-pass --ask-become-pass
+#############################################################################################
+---
+- hosts: "{{ host }}" 
+  remote_user: admin
+  become: yes
+
+  tasks:
+    - name: YUM install 
+      yum: 
+        name: "{{ module }}" 
+        state: latest
+      become_method: sudo 
+      with_items:
+        - host: "{{ host }}"
+        - module: "{{ module }}" 
+
+

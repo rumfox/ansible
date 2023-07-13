@@ -1,0 +1,20 @@
+# -----------------------------------------------------------------------------------------------------
+# Program : spss_reload_ider.yml
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook spss_reload_ider.yml 
+# -----------------------------------------------------------------------------------------------------
+---
+- hosts: lcia-spss01
+  remote_user: admin
+  become: yes
+  become_user: lcia-spss
+  become_method: sudo
+
+  tasks:
+    - name: execute SPSS data reload job  
+      include_tasks: spss_reload_ided.yml
+      vars: 
+        - startym: "{{ item.startym }}" 
+        - endym: "{{ item.endym }}"
+      with_items: 
+        - {startym: "201709", endym: "201710"}
