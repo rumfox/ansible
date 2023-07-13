@@ -1,7 +1,0 @@
-#Create by Template at {{  ansible_date_time.iso8601 }}
-
-127.0.0.1 {{ ansible_hostname }}
-10.109.2.86 ansible-server
-{% for ip in range(Node_Number) %}
-192.168.1.{{ip+101}} ansible-node0{{ip+1}}
-{% endfor %}

@@ -1,0 +1,11 @@
+---
+- name: Connect to Windows node
+  hosts: windows
+  gather_facts: yes
+  tasks:
+    - name: Test WinRM Connection
+      win_ping:
+
+    - name: Example task
+      win_shell: echo "Hello, Windows!"
+      
