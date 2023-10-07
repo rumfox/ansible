@@ -1,0 +1,103 @@
+#########################################################################################################################
+# Program : aws_instance_dbcontainer_stop.yml
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook aws_instance_dbcontainer_stop.yml --private-key=/home/rumfox/key/Qlik_Demo_Instance_Key.pem
+#########################################################################################################################
+---
+# Start a few existing instances, run some tasks
+- name: Stop Instances Job
+  hosts: localhost
+  gather_facts: false
+  connection: local
+   
+  vars:
+    aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+    aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+    instance_id: 'i-0a0f05255b9dd0916'
+    region: 'ap-northeast-2'
+    subnet_id: 'subnet-05f96b80c87fc6fde'
+
+  tasks:
+    #    - name: Stop EC2 Instance
+    #      ec2_instance:
+    #        key_name: Qlik_Demo_Instance_Key.pem
+    #        instance_ids: "{{ instance_id }}"
+    #        region: "{{ region }}"
+    #        aws_access_key: "{{ aws_access_key }}"
+    #        aws_secret_key: "{{ aws_secret_key }}"
+    #        vpc_subnet_id: "{{ subnet_id }}"
+    #        state: running
+    #      register: ec2_info
+       
+    - name: Get EC2 instance info
+      ec2_instance_info:
+        filters:
+          "tag:Name": "Qlik_Oracle_Demo"  # Replace with your EC2 instance name tag
+        region: "{{ region }}"
+      register: ec2_info
+
+    - name: Set fact with EC2 IP address
+      set_fact:
+        ec2_ip: "{{ ec2_info.instances[0].public_ip_address }}"
+
+    - name: Display the EC2 IP address
+      debug:
+        var: ec2_ip     
+
+    - name: Add EC2 instance to inventory
+      add_host:
+        name: ec2_instance
+        ansible_host: "{{ ec2_ip }}"
+        ansible_user: ec2-user  # Adjust the user as per your EC2 instance configuration
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      when: ec2_ip is defined
+
+    - name: Wait for SSH to become available
+      wait_for:
+        host: "{{ ec2_ip }}"
+        port: 22
+        timeout: 300
+      
+        
+- name: Execute Command on EC2 Instance
+  #hosts: "{{ ec2_instance }}"
+  hosts: ec2_instance
+  gather_facts: yes
+  become: yes
+  remote_user: ec2-user  # Adjust the user as per your EC2 instance configuration
+  tasks:
+    - name: Execute Command on EC2 Instance
+      become: yes
+      become_user: root
+      shell: |
+        docker start 61b9bbda4734 341ab7d79a48 308d3649c9d7 4badcdbbd538
+        systemctl stop docker.socket
+
+- name: Start Instances
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+    aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+    instance_id: 'i-0a0f05255b9dd0916'
+    region: 'ap-northeast-2'
+    subnet_id: 'subnet-05f96b80c87fc6fde'
+
+  tasks:
+    - name: Stop EC2 Instance
+      ec2_instance:
+        key_name: Qlik_Demo_Instance_Key.pem
+        instance_ids: "{{ instance_id }}"
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_subnet_id: "{{ subnet_id }}"
+        state: stopped
+      register: ec2_stop_result 
+
+    - name: Display the Stopped status 
+      debug:
+        var: ec2_stop_result.instances[0].monitoring     
+

@@ -1,0 +1,94 @@
+####################################################################################################################
+# Program : aws_instance_manage.yml
+# Creator : Lee Sang Hyoung
+# Syntax  : ansible-playbook aws_instance_manage_svc.yml --private-key=/home/rumfox/key/Qlik_Demo_Instance_Key.pem
+####################################################################################################################
+---
+# Start a few existing instances, run some tasks
+# and stop the instances
+- name: Start Instances
+  hosts: localhost
+  gather_facts: false
+  connection: local
+   
+  vars:
+    aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+    aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+    instance_id: 'i-0d9041f61e7e989e7'
+    region: 'ap-northeast-2'
+
+  tasks:
+    - name: Start EC2 Instance
+      ec2_instance:
+        key_name: Qlik_Demo_Instance_Key.pem
+        instance_ids: "{{ instance_id }}"
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_subnet_id: 'subnet-0d3e432acb1456a3a'
+        state: running
+      register: ec2_info
+       
+    - name: Get EC2 instance info
+      ec2_instance_info:
+        filters:
+          "tag:Name": "Qlik_Demo_Instance"  # Replace with your EC2 instance name tag
+        region: "{{ region }}"
+      register: ec2_info
+
+    - name: Set fact with EC2 IP address
+      set_fact:
+        ec2_ip: "{{ ec2_info.instances[0].public_ip_address }}"
+
+    - name: Display the EC2 IP address
+      debug:
+        var: ec2_ip     
+
+    - name: Add EC2 instance to inventory
+      add_host:
+        name: ec2_instance
+        ansible_host: "{{ ec2_ip }}"
+        ansible_user: centos  # Adjust the user as per your EC2 instance configuration
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      when: ec2_ip is defined
+
+        #    - name: Set fact with EC2 instance name
+        #      set_fact:
+        #        ec2_instance: "ec2_instance"
+        #
+
+        #    - name: Execute command on EC2 instance
+        #      become: yes
+        #      become_user: centos
+        #      shell: |
+        #        sudo /opt/attunity/replicate/bin/areplicate start
+        #      args:
+        #        executable: /bin/bash
+        #      delegate_to: "{{ ec2_ip }}"
+        #
+    - name: Wait for SSH to become available
+      wait_for:
+        host: "{{ ec2_ip }}"
+        port: 22
+        timeout: 300
+      
+        
+- name: Execute Command on EC2 Instance
+  #hosts: "{{ ec2_instance }}"
+  hosts: ec2_instance
+  gather_facts: yes
+  become: yes
+  remote_user: centos  # Adjust the user as per your EC2 instance configuration
+  #become_user: centos  # Adjust the user as per your EC2 instance configuration
+  tasks:
+    - name: Execute Command on EC2 Instance
+      become: yes
+      become_user: root
+      shell: /opt/attunity/replicate/bin/areplicate start
+      #args:
+      #  executable: /bin/bash
+      #vars:
+      # ansible_ssh_private_key_file: /home/rumfox/key/Qlik_Demo_Instance_Key.pem
+      
+
+
